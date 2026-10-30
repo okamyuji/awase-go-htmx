@@ -18,7 +18,7 @@ import (
 	"github.com/okamyuji/awase-go-htmx/internal/handler"
 )
 
-const usage = "usage: awase [serve]"
+const usage = "usage: awase [serve] | awase passwd -username <name> < password"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -27,7 +27,7 @@ func main() {
 	os.Exit(code)
 }
 
-func run(ctx context.Context, args []string, _ io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
+func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	logger := slog.New(slog.NewJSONHandler(stdout, nil))
 	cmd := "serve"
 	if len(args) > 0 {
@@ -36,6 +36,8 @@ func run(ctx context.Context, args []string, _ io.Reader, stdout, stderr io.Writ
 	switch cmd {
 	case "serve":
 		return runServe(ctx, logger, getenv)
+	case "passwd":
+		return runPasswd(ctx, args[1:], stdin, stderr, logger, getenv)
 	default:
 		if _, err := fmt.Fprintln(stderr, usage); err != nil {
 			logger.Error("write usage", "err", err)
