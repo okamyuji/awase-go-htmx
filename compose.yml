@@ -1,0 +1,26 @@
+# awase の配備用 compose です。feedflow の EC2 に同居し、feedflow の nginx から共有ネットワーク経由で到達されます。
+# ポートはホストへ公開せず、feedflow_internal ネットワークへ参加するだけにします。
+# ローカル開発では使わず、make run で起動してください。
+services:
+  awase-app:
+    image: awase:${AWASE_VERSION:-dev}
+    restart: unless-stopped
+    # 1GB の t4g を feedflow と boki3 と共有するため、メモリ不足で止まるのが awase だけになるよう上限を設けます。
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    environment:
+      AWASE_ADDR: ":8080"
+      AWASE_DB_PATH: "/data/awase.db"
+      GOMEMLIMIT: "96MiB"
+    volumes:
+      - /mnt/feedflow-data/awase:/data
+    expose:
+      - "8080"
+    networks:
+      - feedflow_internal
+
+networks:
+  feedflow_internal:
+    external: true

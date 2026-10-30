@@ -21,3 +21,6 @@ deploy/terraform/*.tfstate
 deploy/terraform/*.tfstate.*
 deploy/terraform/secrets.auto.tfvars
 deploy/terraform/*.pem
+deploy/terraform/.terraform-tmp/
+deploy/terraform/.terraform.lock.hcl.bak
+deploy/terraform/*.tfplan
