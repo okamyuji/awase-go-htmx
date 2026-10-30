@@ -4,10 +4,15 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     uses: okamyuji/reusable-workflows/.github/workflows/go-ci.yml@v1
     with:
+      # go.mod は Dependabot の Go でも満たせる版にし、CI は最新のパッチで動かします。
+      go-version: "1.27.x"
       test-command: "go test -race -shuffle=on -count=1 ./..."
   security:
     uses: okamyuji/reusable-workflows/.github/workflows/security-scan.yml@v1
