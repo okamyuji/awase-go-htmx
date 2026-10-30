@@ -1,0 +1,23 @@
+/bin/
+/data/
+coverage.out
+.env
+.DS_Store
+docs/superpowers/
+docs/_quality/
+graphify-out/
+
+# ミューテーションテストの結果です。作業領域はリポジトリの外に置き、残っていれば品質ゲートが失敗します。
+gremlins.json
+
+# e2e
+node_modules/
+test-results/
+playwright-report/
+
+# terraform
+deploy/terraform/.terraform/
+deploy/terraform/*.tfstate
+deploy/terraform/*.tfstate.*
+deploy/terraform/secrets.auto.tfvars
+deploy/terraform/*.pem

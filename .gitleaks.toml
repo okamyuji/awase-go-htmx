@@ -1,0 +1,4 @@
+title = "awase gitleaks config"
+
+[extend]
+useDefault = true

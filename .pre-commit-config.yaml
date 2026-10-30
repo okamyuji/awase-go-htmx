@@ -1,0 +1,19 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+
+  - repo: local
+    hooks:
+      - id: quality-gate
+        name: quality gate
+        entry: scripts/quality-gate.sh
+        language: system
+        pass_filenames: false
+        always_run: true
