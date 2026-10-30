@@ -1,0 +1,37 @@
+{{define "content"}}
+{{$ev := .Data.Event}}
+<p><a href="/events/{{$ev.ID}}">← 出欠表へ戻る</a></p>
+{{template "errors" .Data.Errors}}
+<section class="card">
+  <h1>イベントを編集</h1>
+  <form method="post" action="/events/{{$ev.ID}}" class="stack">
+    <label>タイトル<input name="title" value="{{.Data.Title}}" required></label>
+    <label>メモ<textarea name="memo">{{.Data.Memo}}</textarea></label>
+    <button type="submit">保存</button>
+  </form>
+</section>
+<section class="card">
+  <h2>候補</h2>
+  <ul class="cands">
+    {{range $ev.Candidates}}
+    <li>
+      <span>{{.Label}}</span>
+      <form method="post" action="/events/{{$ev.ID}}/candidates/{{.ID}}/delete" hx-confirm="この候補と、その候補への出欠を削除しますか？">
+        <button type="submit" class="danger small">削除</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  <form method="post" action="/events/{{$ev.ID}}/candidates" class="stack">
+    <label>候補を追加（1行に1つ）<textarea name="candidates" required>{{.Data.NewCandidates}}</textarea></label>
+    <button type="submit">追加</button>
+  </form>
+</section>
+<section class="card">
+  <h2>イベントを削除</h2>
+  <p class="muted">候補と回答もすべて消えます。</p>
+  <form method="post" action="/events/{{$ev.ID}}/delete" hx-confirm="このイベントを削除しますか？">
+    <button type="submit" class="danger">削除する</button>
+  </form>
+</section>
+{{end}}

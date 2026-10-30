@@ -1,0 +1,13 @@
+{{define "content"}}
+{{$ev := .Data.Event}}
+<p><a href="/events/{{$ev.ID}}">← 出欠表へ戻る</a></p>
+<section class="card">
+  <h1>{{$ev.Title}} の回答を編集</h1>
+  {{template "answerform" .Data.AnswerForm}}
+</section>
+<section class="card">
+  <form method="post" action="/events/{{$ev.ID}}/answers/{{.Data.AnswerID}}/delete" hx-confirm="この回答を削除しますか？">
+    <button type="submit" class="danger">この回答を削除</button>
+  </form>
+</section>
+{{end}}

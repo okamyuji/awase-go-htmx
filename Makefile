@@ -7,6 +7,7 @@ test:
 	go test -race -shuffle=on -count=1 ./...
 
 run:
+	mkdir -p data
 	AWASE_DB_PATH=$${AWASE_DB_PATH:-data/awase.db} AWASE_COOKIE_SECURE=false go run ./cmd/awase
 
 gate:

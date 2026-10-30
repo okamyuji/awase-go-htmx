@@ -11,7 +11,7 @@ import (
 )
 
 func TestHealthzReturnsOK(t *testing.T) {
-	h := New(Deps{})
+	h := New(Deps{Auth: &fakeAuth{}})
 	rec := httptest.NewRecorder()
 
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
@@ -32,7 +32,7 @@ func (failingWriter) WriteString(string) (int, error) { return 0, errors.New("br
 
 func TestHealthzLogsWriteError(t *testing.T) {
 	var logs bytes.Buffer
-	h := New(Deps{Logger: slog.New(slog.NewJSONHandler(&logs, nil))})
+	h := New(Deps{Auth: &fakeAuth{}, Logger: slog.New(slog.NewJSONHandler(&logs, nil))})
 
 	h.ServeHTTP(failingWriter{httptest.NewRecorder()}, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 

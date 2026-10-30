@@ -1,0 +1,24 @@
+{{define "errors"}}{{if .}}<ul class="error" role="alert">{{range .}}<li>{{.}}</li>{{end}}</ul>{{end}}{{end}}
+
+{{define "answerform"}}
+<form method="post" action="{{.Action}}" class="stack">
+  {{template "errors" .Errors}}
+  <label>名前<input name="name" value="{{.Form.Name}}" autocomplete="nickname" required></label>
+  <fieldset class="choices">
+    <legend>候補ごとの出欠</legend>
+    {{$f := .Form}}
+    {{range .Candidates}}
+    <div class="choice-row">
+      <span class="choice-label">{{.Label}}</span>
+      <span class="opts">
+        <label class="opt"><input type="radio" required name="choice-{{.ID}}" value="2"{{if isChoice $f.Choices .ID 2}} checked{{end}}>○</label>
+        <label class="opt"><input type="radio" name="choice-{{.ID}}" value="1"{{if isChoice $f.Choices .ID 1}} checked{{end}}>△</label>
+        <label class="opt"><input type="radio" name="choice-{{.ID}}" value="0"{{if isChoice $f.Choices .ID 0}} checked{{end}}>×</label>
+      </span>
+    </div>
+    {{end}}
+  </fieldset>
+  <label>コメント<input name="comment" value="{{.Form.Comment}}"></label>
+  <button type="submit">{{.Submit}}</button>
+</form>
+{{end}}

@@ -4,6 +4,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -15,10 +16,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/okamyuji/awase-go-htmx/internal/auth"
 	"github.com/okamyuji/awase-go-htmx/internal/handler"
+	"github.com/okamyuji/awase-go-htmx/internal/service"
+	"github.com/okamyuji/awase-go-htmx/internal/store"
 )
 
-const usage = "usage: awase [serve]"
+const usage = "usage: awase [serve] | awase passwd -username <name> < password"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -27,7 +31,7 @@ func main() {
 	os.Exit(code)
 }
 
-func run(ctx context.Context, args []string, _ io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
+func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer, getenv func(string) string) int {
 	logger := slog.New(slog.NewJSONHandler(stdout, nil))
 	cmd := "serve"
 	if len(args) > 0 {
@@ -36,6 +40,8 @@ func run(ctx context.Context, args []string, _ io.Reader, stdout, stderr io.Writ
 	switch cmd {
 	case "serve":
 		return runServe(ctx, logger, getenv)
+	case "passwd":
+		return runPasswd(ctx, args[1:], stdin, stderr, logger, getenv)
 	default:
 		if _, err := fmt.Fprintln(stderr, usage); err != nil {
 			logger.Error("write usage", "err", err)
@@ -44,19 +50,53 @@ func run(ctx context.Context, args []string, _ io.Reader, stdout, stderr io.Writ
 	}
 }
 
-func runServe(ctx context.Context, logger *slog.Logger, getenv func(string) string) int {
+func runServe(ctx context.Context, logger *slog.Logger, getenv func(string) string) (code int) {
+	db, err := store.Open(ctx, dbPath(getenv))
+	if err != nil {
+		logger.Error("open db", "err", err)
+		return 1
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Error("close db", "err", err)
+			code = 1
+		}
+	}()
 	addr := cmp.Or(getenv("AWASE_ADDR"), ":8080")
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		logger.Error("listen", "addr", addr, "err", err)
 		return 1
 	}
-	if err := serve(ctx, ln, handler.New(handler.Deps{Logger: logger}), logger); err != nil {
+	clock := systemClock{}
+	events, answers := store.NewEvents(db), store.NewAnswers(db)
+	h := handler.New(handler.Deps{
+		Auth:         service.NewAuth(store.NewAccount(db), store.NewSessions(db), auth.NewScryptHasher(), auth.NewLimiter(), clock),
+		Events:       service.NewEvents(events, answers, randomIDs{}, clock),
+		Answers:      service.NewAnswers(events, answers, clock),
+		Logger:       logger,
+		CookieSecure: cookieSecure(getenv),
+	})
+	if err := serve(ctx, ln, h, logger); err != nil {
 		logger.Error("serve", "err", err)
 		return 1
 	}
 	return 0
 }
+
+// cookieSecure 本番では Secure を必ず付けるため、"false" を明示したときだけ外します。
+func cookieSecure(getenv func(string) string) bool {
+	return getenv("AWASE_COOKIE_SECURE") != "false"
+}
+
+// randomIDs イベント ID は URL に出るため、推測できない乱数の文字列にします。
+type randomIDs struct{}
+
+func (randomIDs) NewID() string { return rand.Text() }
+
+type systemClock struct{}
+
+func (systemClock) Now() time.Time { return time.Now() }
 
 // serve ctx が取り消されるまで ln で h を提供し、取り消し後は処理中の要求を待って止まります。
 func serve(ctx context.Context, ln net.Listener, h http.Handler, logger *slog.Logger) error {

@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="card">
+  <h1>イベントを作る</h1>
+  <form method="post" action="/events" class="stack">
+    {{template "errors" .Data.Errors}}
+    <label>タイトル<input name="title" value="{{.Data.Title}}" required></label>
+    <label>メモ<textarea name="memo">{{.Data.Memo}}</textarea></label>
+    <label>候補日時（1行に1つ）<textarea name="candidates" required placeholder="11/3(月) 19:00〜&#10;11/4(火) 19:00〜">{{.Data.Candidates}}</textarea></label>
+    <button type="submit">作る</button>
+  </form>
+</section>
+{{end}}
