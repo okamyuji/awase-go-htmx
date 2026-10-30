@@ -52,6 +52,9 @@ echo "==> doclint"
 go run -C tools/doclint . ../../docs
 
 echo "==> gitleaks"
-gitleaks detect --no-git --source . --redact --no-banner --config .gitleaks.toml
+# 作業ツリー全体を見ると、git の管理外の secrets.auto.tfvars や terraform.tfstate を拾うため、
+# コミット済みの履歴とステージ済みの差分だけを見ます。
+gitleaks git . --redact --no-banner --config .gitleaks.toml
+gitleaks git . --pre-commit --staged --redact --no-banner --config .gitleaks.toml
 
 echo "all quality checks passed"

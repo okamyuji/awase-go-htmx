@@ -24,3 +24,4 @@ deploy/terraform/*.pem
 deploy/terraform/.terraform-tmp/
 deploy/terraform/.terraform.lock.hcl.bak
 deploy/terraform/*.tfplan
+/deploy/terraform/password.txt

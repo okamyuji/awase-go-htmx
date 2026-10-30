@@ -40,7 +40,7 @@ for phase in http_request_firewall_custom http_ratelimit; do
 done
 ```
 
-既存のルールセットがあれば、`terraform import`で取り込み、既存のルールを`waf.tf`へ写します。Freeプランのレート制限は1ルールまでなので、`http_ratelimit`に既存のルールがある場合はawaseのルールを足せません。
+レート制限の`http_ratelimit`は、awaseのterraformがルールセットごと作ります。Freeプランのレート制限は1ルールまでなので、既存のルールがある場合はawaseのルールを足せません。カスタムルールの`http_request_firewall_custom`は、AI Crawl Controlのルールと同居するため、`deploy/scripts/cf-country-rule.sh`がawaseのルールだけを追加します。
 
 ## 3 配備する
 
@@ -74,7 +74,7 @@ terraform output -raw passwd_command
 terraform destroy
 ```
 
-nginxからawaseの設定を外して`nginx -t`とreloadを済ませてから、証明書とコンテナを消します。データの`/mnt/feedflow-data/awase`は残ります。WAFのルールセットはゾーンで共有しているので、他のアプリのルールも一緒に消えます。
+nginxからawaseの設定を外して`nginx -t`とreloadを済ませてから、証明書とコンテナを消します。データの`/mnt/feedflow-data/awase`は残ります。カスタムルールからはawaseのルールだけを消します。レート制限のルールセットはゾーンで共有しているので、他のアプリのレート制限も一緒に消えます。
 
 ## 注意
 

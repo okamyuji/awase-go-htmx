@@ -1,19 +1,28 @@
-# ゾーンの WAF のルールセットです。ルールセットは段階ごとにゾーンで1つしか作れないため、
-# awase の terraform がゾーンで共有する資産として持ちます。feedflow や boki3 がルールを足す場合もここへ加えます。
-# このため awase の terraform で destroy を実行すると、他のアプリのルールも消えます。
+# ゾーンの WAF のうち、レート制限の段階のルールセットは awase の terraform が持ちます。
+# ルールセットは段階ごとにゾーンで1つしか作れないため、feedflow や boki3 がレート制限を足す場合もここへ加えます。
+# このため awase の terraform で destroy を実行すると、他のアプリのレート制限も消えます。
+#
+# カスタムルールの段階には AI Crawl Control が作るルールが同居するため、ルールセットごとは持ちません。
+# awase の国別遮断のルールだけを、ルール単位の API で追加と削除をします。
 
-resource "cloudflare_ruleset" "custom" {
-  zone_id     = data.cloudflare_zone.this.id
-  name        = "zone custom rules"
-  description = "ゾーンのカスタムルール"
-  kind        = "zone"
-  phase       = "http_request_firewall_custom"
+resource "null_resource" "country_rule" {
+  triggers = {
+    zone     = var.zone_name
+    hostname = var.hostname
+    script   = abspath("${path.module}/../scripts/cf-country-rule.sh")
+  }
 
-  rules {
-    action      = "block"
-    expression  = "(http.host eq \"${var.hostname}\" and not ip.src.country in {\"JP\"})"
-    description = "awase: 日本以外からの要求を遮断する"
-    enabled     = true
+  provisioner "local-exec" {
+    command = "${self.triggers.script} add ${self.triggers.zone} ${self.triggers.hostname}"
+    environment = {
+      CF_API_TOKEN = var.cloudflare_api_token
+    }
+  }
+
+  # destroy では変数を参照できないため、スクリプトが secrets.auto.tfvars からトークンを読みます。
+  provisioner "local-exec" {
+    when    = destroy
+    command = "${self.triggers.script} remove ${self.triggers.zone} ${self.triggers.hostname}"
   }
 }
 
