@@ -150,3 +150,10 @@ func TestCookieSecureIsOnUnlessExplicitlyFalse(t *testing.T) {
 		}
 	}
 }
+
+func TestRandomIDsAreUniqueAndURLSafe(t *testing.T) {
+	a, b := randomIDs{}.NewID(), randomIDs{}.NewID()
+	if a == b || len(a) < 26 || strings.ContainsAny(a, "/?#&%") {
+		t.Fatalf("ids = %q %q", a, b)
+	}
+}

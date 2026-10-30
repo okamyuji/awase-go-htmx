@@ -44,3 +44,49 @@ button.danger { background: var(--error); }
 @media (min-width: 48rem) {
   main { padding: calc(var(--space) * 2); }
 }
+
+.spread { justify-content: space-between; }
+.button.secondary { background: var(--card); color: var(--accent); border: 1px solid var(--line); }
+button.small { padding: 0.25rem 0.75rem; font-size: 0.9rem; }
+.memo { white-space: pre-wrap; margin: 0; }
+
+.events { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
+.events li { display: grid; gap: 0.25rem; }
+.event-title { font-weight: 700; font-size: 1.1rem; }
+
+.table-wrap { overflow-x: auto; }
+.tally { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.tally th, .tally td { border-bottom: 1px solid var(--line); padding: 0.5rem 0.75rem; text-align: center; white-space: nowrap; background: var(--card); }
+.tally th[scope="row"] { text-align: left; }
+.tally tr.best th, .tally tr.best td { background: var(--best); font-weight: 700; }
+.tally .mark { font-size: 1.1rem; }
+.pin { position: sticky; z-index: 1; }
+.pin1 { left: 0; }
+.pin2 { left: var(--pin1-width, 9rem); }
+.pin1 { min-width: 9rem; max-width: 9rem; white-space: normal; }
+
+.comments { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0; }
+.comments dt { font-weight: 600; }
+.comments dd { margin: 0; white-space: pre-wrap; }
+
+.choices { border: 1px solid var(--line); border-radius: 0.375rem; padding: 0.5rem 0.75rem; display: grid; gap: 0.5rem; }
+.choice-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; align-items: center; }
+.opts { display: flex; gap: 0.5rem; }
+.opt { display: flex; align-items: center; gap: 0.25rem; font-weight: 400; font-size: 1.2rem; }
+.opt input { width: auto; }
+
+.cands { list-style: none; padding: 0; margin: 0 0 1rem; display: grid; gap: 0.5rem; }
+.cands li { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+
+@media (min-width: 64rem) {
+  main { grid-template-columns: minmax(0, 1fr); max-width: none; }
+  .events { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.brand { display: inline-flex; align-items: center; gap: 0.5rem; }
+
+/* 出欠はラジオボタンを隠し、記号そのものを押すボタンにします。キーボード操作とスクリーンリーダーはラジオボタンのまま使えます。 */
+.opt { position: relative; border: 1px solid var(--line); border-radius: 0.5rem; padding: 0.25rem 0.9rem; cursor: pointer; background: var(--card); }
+.opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.opt:has(input:checked) { background: var(--accent); color: #fff; border-color: var(--accent); }
+.opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }

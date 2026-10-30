@@ -1,0 +1,45 @@
+{{define "content"}}
+{{$ev := .Data.View.Event}}
+<section class="card">
+  <div class="row spread">
+    <h1>{{$ev.Title}}</h1>
+    <a href="/events/{{$ev.ID}}/edit" class="button secondary">編集</a>
+  </div>
+  {{with $ev.Memo}}<p class="memo">{{.}}</p>{{end}}
+  <p class="muted">更新 {{jst $ev.UpdatedAt}}</p>
+</section>
+<section class="card">
+  <h2>出欠表</h2>
+  <div class="table-wrap">
+    <table class="tally">
+      <thead>
+        <tr>
+          <th scope="col" class="pin pin1">候補</th>
+          <th scope="col" class="pin pin2">○ / △ / ×</th>
+          {{range .Data.View.Answers}}<th scope="col"><a href="/events/{{$ev.ID}}/answers/{{.ID}}/edit">{{.Name}}</a></th>{{end}}
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Data.View.Tally}}
+        {{$cid := .Candidate.ID}}
+        <tr{{if .Best}} class="best"{{end}}>
+          <th scope="row" class="pin pin1">{{.Candidate.Label}}</th>
+          <td class="pin pin2">{{.Yes}} / {{.Maybe}} / {{.No}}</td>
+          {{range $.Data.View.Answers}}<td class="mark">{{mark .Choices $cid}}</td>{{end}}
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{if .Data.View.Answers}}
+  <h3>コメント</h3>
+  <dl class="comments">
+    {{range .Data.View.Answers}}{{if .Comment}}<dt>{{.Name}}</dt><dd>{{.Comment}}</dd>{{end}}{{end}}
+  </dl>
+  {{end}}
+</section>
+<section class="card">
+  <h2>出欠を入力</h2>
+  {{template "answerform" .Data.AnswerForm}}
+</section>
+{{end}}

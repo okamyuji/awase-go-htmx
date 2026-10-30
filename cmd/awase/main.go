@@ -4,6 +4,7 @@ package main
 import (
 	"cmp"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -67,8 +68,15 @@ func runServe(ctx context.Context, logger *slog.Logger, getenv func(string) stri
 		logger.Error("listen", "addr", addr, "err", err)
 		return 1
 	}
-	authSvc := service.NewAuth(store.NewAccount(db), store.NewSessions(db), auth.NewScryptHasher(), auth.NewLimiter(), systemClock{})
-	h := handler.New(handler.Deps{Auth: authSvc, Logger: logger, CookieSecure: cookieSecure(getenv)})
+	clock := systemClock{}
+	events, answers := store.NewEvents(db), store.NewAnswers(db)
+	h := handler.New(handler.Deps{
+		Auth:         service.NewAuth(store.NewAccount(db), store.NewSessions(db), auth.NewScryptHasher(), auth.NewLimiter(), clock),
+		Events:       service.NewEvents(events, answers, randomIDs{}, clock),
+		Answers:      service.NewAnswers(events, answers, clock),
+		Logger:       logger,
+		CookieSecure: cookieSecure(getenv),
+	})
 	if err := serve(ctx, ln, h, logger); err != nil {
 		logger.Error("serve", "err", err)
 		return 1
@@ -80,6 +88,11 @@ func runServe(ctx context.Context, logger *slog.Logger, getenv func(string) stri
 func cookieSecure(getenv func(string) string) bool {
 	return getenv("AWASE_COOKIE_SECURE") != "false"
 }
+
+// randomIDs イベント ID は URL に出るため、推測できない乱数の文字列にします。
+type randomIDs struct{}
+
+func (randomIDs) NewID() string { return rand.Text() }
 
 type systemClock struct{}
 

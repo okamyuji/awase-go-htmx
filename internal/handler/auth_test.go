@@ -272,3 +272,22 @@ func TestStaticAssetsAreCachedLong(t *testing.T) {
 		t.Fatalf("Cache-Control = %q", rec.Header().Get("Cache-Control"))
 	}
 }
+
+func TestFaviconIsServedWithoutLogin(t *testing.T) {
+	h, _ := newTestHandler(t, &fakeAuth{})
+
+	rec := do(h, httptest.NewRequest(http.MethodGet, "/favicon.ico", nil))
+
+	loc := rec.Header().Get("Location")
+	if rec.Code != http.StatusMovedPermanently || !strings.HasPrefix(loc, "/static/favicon.svg?v=") {
+		t.Fatalf("status=%d location=%q", rec.Code, loc)
+	}
+	svg := do(h, httptest.NewRequest(http.MethodGet, loc, nil))
+	if svg.Code != http.StatusOK || svg.Header().Get("Content-Type") != "image/svg+xml" {
+		t.Fatalf("svg status=%d type=%q", svg.Code, svg.Header().Get("Content-Type"))
+	}
+	page := do(h, httptest.NewRequest(http.MethodGet, "/login", nil)).Body.String()
+	if !strings.Contains(page, `rel="icon" href="`+loc+`"`) {
+		t.Fatal("layout does not link the favicon")
+	}
+}

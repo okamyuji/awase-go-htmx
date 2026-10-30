@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
+	"time"
 
+	"github.com/okamyuji/awase-go-htmx/internal/domain"
 	"github.com/okamyuji/awase-go-htmx/web"
 )
 
@@ -18,8 +20,31 @@ type view struct {
 	Data   any
 }
 
+// jst 日本は夏時間がないため、tzdata のない distroless でも動く固定の時差で表します。
+var jst = time.FixedZone("JST", 9*60*60)
+
+// mark 回答の出欠を記号で返します。後から足した候補で出欠がなければ「−」です。
+func mark(choices map[int64]domain.Choice, cid int64) string {
+	c, ok := choices[cid]
+	if !ok {
+		return "−"
+	}
+	return c.Symbol()
+}
+
+func isChoice(choices map[int64]domain.Choice, cid int64, v int) bool {
+	c, ok := choices[cid]
+	return ok && int(c) == v
+}
+
 type renderer struct {
-	pages map[string]*template.Template
+	pages    map[string]*template.Template
+	versions map[string]string
+}
+
+// asset 静的ファイルの URL に内容のハッシュを付けて返します。
+func (r *renderer) asset(name string) string {
+	return "/static/" + name + "?v=" + r.versions[name]
 }
 
 // assetVersions 静的ファイルの内容のハッシュです。URL に付けて、内容が変わったらブラウザと Cloudflare に取り直させます。
@@ -42,13 +67,15 @@ func assetVersions() map[string]string {
 
 // newRenderer 画面ごとに layout と組み合わせたテンプレートを作ります。埋め込みのテンプレートが壊れていれば起動時に panic します。
 func newRenderer(pages ...string) *renderer {
-	versions := assetVersions()
+	r := &renderer{pages: map[string]*template.Template{}, versions: assetVersions()}
 	funcs := template.FuncMap{
-		"asset": func(name string) string { return "/static/" + name + "?v=" + versions[name] },
+		"asset":    r.asset,
+		"jst":      func(t time.Time) string { return t.In(jst).Format("2006/01/02 15:04") },
+		"mark":     mark,
+		"isChoice": isChoice,
 	}
-	r := &renderer{pages: map[string]*template.Template{}}
 	for _, p := range pages {
-		r.pages[p] = template.Must(template.New("").Funcs(funcs).ParseFS(web.FS, "templates/layout.html", "templates/"+p+".html"))
+		r.pages[p] = template.Must(template.New("").Funcs(funcs).ParseFS(web.FS, "templates/layout.html", "templates/partials.html", "templates/"+p+".html"))
 	}
 	return r
 }
