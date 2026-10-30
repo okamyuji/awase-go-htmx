@@ -94,7 +94,8 @@ func (a *app) serverError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 // clientIP nginx が Cloudflare の CF-Connecting-IP から復元して設定する X-Real-IP を使います。
-// awase-app はポートを公開しないので、nginx を経由しない要求は届きません。
+// nginx は proxy_set_header で利用者が送った X-Real-IP を必ず上書きし、awase-app はポートを公開しないため、
+// 外から偽の値を届ける経路はありません。
 func clientIP(r *http.Request) string {
 	if ip := r.Header.Get("X-Real-IP"); ip != "" {
 		return ip

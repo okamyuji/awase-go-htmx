@@ -45,8 +45,8 @@ func TestLoginSuccessCreatesVersionedSession(t *testing.T) {
 	if !ok || s.version != 3 || !s.expires.Equal(t0.Add(30*24*time.Hour)) {
 		t.Fatalf("session = %+v ok=%v", s, ok)
 	}
-	if !slices.Equal(f.lim.resets, []string{"1.2.3.4"}) || len(f.lim.fails) != 0 {
-		t.Fatalf("limiter resets=%v fails=%v", f.lim.resets, f.lim.fails)
+	if !slices.Equal(f.lim.resets, []string{"1.2.3.4"}) || !slices.Equal(f.lim.attempts, []string{"1.2.3.4"}) {
+		t.Fatalf("limiter resets=%v attempts=%v", f.lim.resets, f.lim.attempts)
 	}
 	if !slices.Equal(f.ss.expiredSweep, []time.Time{t0}) {
 		t.Fatalf("expired sweep = %v", f.ss.expiredSweep)
@@ -78,8 +78,8 @@ func TestLoginFailuresAreCountedAndStillVerify(t *testing.T) {
 			if !slices.Equal(f.hs.verified, []string{tt.wantHash}) {
 				t.Fatalf("verified = %v, want %s", f.hs.verified, tt.wantHash)
 			}
-			if !slices.Equal(f.lim.fails, []string{"ip"}) || len(f.ss.m) != 0 {
-				t.Fatalf("fails=%v sessions=%d", f.lim.fails, len(f.ss.m))
+			if !slices.Equal(f.lim.attempts, []string{"ip"}) || len(f.lim.resets) != 0 || len(f.ss.m) != 0 {
+				t.Fatalf("attempts=%v resets=%v sessions=%d", f.lim.attempts, f.lim.resets, len(f.ss.m))
 			}
 		})
 	}

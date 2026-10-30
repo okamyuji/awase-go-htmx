@@ -28,8 +28,10 @@ type Limiter struct {
 // NewLimiter 空の Limiter を返します。
 func NewLimiter() *Limiter { return &Limiter{entries: map[string]*failures{}} }
 
-// Blocked ip が拒否中なら真を返します。期限切れの項目はここで捨てます。
-func (l *Limiter) Blocked(ip string, now time.Time) bool {
+// Attempt ip のログインの試行を1回数え、照合してよければ真を返します。
+// 判定と加算を同じロックの中で行うので、同時に送られた試行も上限を超えて照合されません。
+// 成功した試行は Reset で消すため、数え残るのは失敗だけです。
+func (l *Limiter) Attempt(ip string, now time.Time) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	for k, f := range l.entries {
@@ -38,14 +40,9 @@ func (l *Limiter) Blocked(ip string, now time.Time) bool {
 		}
 	}
 	f, ok := l.entries[ip]
-	return ok && now.Before(f.until)
-}
-
-// Fail ip の失敗を1回数え、窓の中で上限に達したら lockFor の間拒否します。
-func (l *Limiter) Fail(ip string, now time.Time) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	f, ok := l.entries[ip]
+	if ok && now.Before(f.until) {
+		return false
+	}
 	if !ok || now.Sub(f.first) >= failWindow {
 		f = &failures{first: now}
 		l.entries[ip] = f
@@ -54,9 +51,10 @@ func (l *Limiter) Fail(ip string, now time.Time) {
 	if f.count >= maxFailures {
 		f.until = now.Add(lockFor)
 	}
+	return true
 }
 
-// Reset ip の失敗の記録を消します。
+// Reset ip の試行の記録を消します。
 func (l *Limiter) Reset(ip string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

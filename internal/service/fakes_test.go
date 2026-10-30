@@ -63,11 +63,13 @@ func (f *fakeSessions) DeleteExpired(_ context.Context, now time.Time) error {
 }
 
 type fakeLimiter struct {
-	blocked bool
-	fails   []string
-	resets  []string
+	blocked  bool
+	attempts []string
+	resets   []string
 }
 
-func (f *fakeLimiter) Blocked(string, time.Time) bool { return f.blocked }
-func (f *fakeLimiter) Fail(ip string, _ time.Time)    { f.fails = append(f.fails, ip) }
-func (f *fakeLimiter) Reset(ip string)                { f.resets = append(f.resets, ip) }
+func (f *fakeLimiter) Attempt(ip string, _ time.Time) bool {
+	f.attempts = append(f.attempts, ip)
+	return !f.blocked
+}
+func (f *fakeLimiter) Reset(ip string) { f.resets = append(f.resets, ip) }

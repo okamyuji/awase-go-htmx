@@ -17,8 +17,9 @@ var (
 
 // LoginLimiter IP アドレスごとのログイン失敗の制限です。
 type LoginLimiter interface {
-	Blocked(ip string, now time.Time) bool
-	Fail(ip string, now time.Time)
+	// Attempt 試行を1回数え、照合してよければ真を返します。判定と加算は不可分です。
+	Attempt(ip string, now time.Time) bool
+	// Reset 成功した ip の試行の記録を消します。
 	Reset(ip string)
 }
 

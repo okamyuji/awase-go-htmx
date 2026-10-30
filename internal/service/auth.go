@@ -30,7 +30,7 @@ func NewAuth(a port.AccountRepository, s port.SessionRepository, h port.Password
 // Login 共有アカウントの資格情報を照合し、成功したらセッションのトークンを返します。
 func (s *Auth) Login(ctx context.Context, ip, username, password string) (string, error) {
 	now := s.clock.Now()
-	if s.limiter.Blocked(ip, now) {
+	if !s.limiter.Attempt(ip, now) {
 		return "", port.ErrLocked
 	}
 	// 照合の前に版を読むので、照合中に passwd が確定してもこのセッションは古い版で作られて無効になります。
@@ -39,7 +39,6 @@ func (s *Auth) Login(ctx context.Context, ip, username, password string) (string
 		return "", err
 	}
 	if !s.matches(acc, err == nil, username, password) {
-		s.limiter.Fail(ip, now)
 		return "", port.ErrInvalidCredentials
 	}
 	s.limiter.Reset(ip)
