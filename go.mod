@@ -1,6 +1,6 @@
 module github.com/okamyuji/awase-go-htmx
 
-go 1.27.3
+go 1.27.0
 
 require (
 	golang.org/x/crypto v0.58.0
