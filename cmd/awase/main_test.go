@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -32,7 +33,7 @@ func TestRunUnknownCommandPrintsUsage(t *testing.T) {
 func TestRunServeFailsOnInvalidAddr(t *testing.T) {
 	var stderr bytes.Buffer
 
-	code := run(t.Context(), nil, strings.NewReader(""), io.Discard, &stderr, env(map[string]string{"AWASE_ADDR": "not-an-addr"}))
+	code := run(t.Context(), nil, strings.NewReader(""), io.Discard, &stderr, env(map[string]string{"AWASE_ADDR": "not-an-addr", "AWASE_DB_PATH": filepath.Join(t.TempDir(), "awase.db")}))
 
 	if code != 1 {
 		t.Fatalf("code = %d, want 1", code)
@@ -91,12 +92,24 @@ func TestRunUnknownCommandStillExits2WhenStderrFails(t *testing.T) {
 	}
 }
 
+// cancelOnListening listening のログが書かれた時点で ctx を取り消します。
+type cancelOnListening struct {
+	bytes.Buffer
+	cancel context.CancelFunc
+}
+
+func (c *cancelOnListening) Write(p []byte) (int, error) {
+	if bytes.Contains(p, []byte(`"msg":"listening"`)) {
+		c.cancel()
+	}
+	return c.Buffer.Write(p)
+}
+
 func TestRunServeExitsZeroWhenContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	var stdout bytes.Buffer
+	stdout := &cancelOnListening{cancel: cancel}
 
-	code := run(ctx, []string{"serve"}, strings.NewReader(""), &stdout, io.Discard, env(map[string]string{"AWASE_ADDR": "127.0.0.1:0"}))
+	code := run(ctx, []string{"serve"}, strings.NewReader(""), stdout, io.Discard, env(map[string]string{"AWASE_ADDR": "127.0.0.1:0", "AWASE_DB_PATH": filepath.Join(t.TempDir(), "awase.db")}))
 
 	if code != 0 {
 		t.Fatalf("code = %d, want 0; log=%s", code, stdout.String())
@@ -119,5 +132,21 @@ func TestServeReturnsErrorWhenListenerClosed(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("serve returned nil, want error")
+	}
+}
+
+func TestRunServeFailsWhenDBCannotOpen(t *testing.T) {
+	code := run(t.Context(), nil, strings.NewReader(""), io.Discard, io.Discard, env(map[string]string{"AWASE_ADDR": "127.0.0.1:0", "AWASE_DB_PATH": filepath.Join(t.TempDir(), "no", "awase.db")}))
+
+	if code != 1 {
+		t.Fatalf("code = %d, want 1", code)
+	}
+}
+
+func TestCookieSecureIsOnUnlessExplicitlyFalse(t *testing.T) {
+	for v, want := range map[string]bool{"": true, "true": true, "false": false, "0": true} {
+		if got := cookieSecure(env(map[string]string{"AWASE_COOKIE_SECURE": v})); got != want {
+			t.Errorf("AWASE_COOKIE_SECURE=%q -> %v, want %v", v, got, want)
+		}
 	}
 }

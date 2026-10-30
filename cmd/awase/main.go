@@ -15,7 +15,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/okamyuji/awase-go-htmx/internal/auth"
 	"github.com/okamyuji/awase-go-htmx/internal/handler"
+	"github.com/okamyuji/awase-go-htmx/internal/service"
+	"github.com/okamyuji/awase-go-htmx/internal/store"
 )
 
 const usage = "usage: awase [serve] | awase passwd -username <name> < password"
@@ -46,19 +49,41 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	}
 }
 
-func runServe(ctx context.Context, logger *slog.Logger, getenv func(string) string) int {
+func runServe(ctx context.Context, logger *slog.Logger, getenv func(string) string) (code int) {
+	db, err := store.Open(ctx, dbPath(getenv))
+	if err != nil {
+		logger.Error("open db", "err", err)
+		return 1
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.Error("close db", "err", err)
+			code = 1
+		}
+	}()
 	addr := cmp.Or(getenv("AWASE_ADDR"), ":8080")
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		logger.Error("listen", "addr", addr, "err", err)
 		return 1
 	}
-	if err := serve(ctx, ln, handler.New(handler.Deps{Logger: logger}), logger); err != nil {
+	authSvc := service.NewAuth(store.NewAccount(db), store.NewSessions(db), auth.NewScryptHasher(), auth.NewLimiter(), systemClock{})
+	h := handler.New(handler.Deps{Auth: authSvc, Logger: logger, CookieSecure: cookieSecure(getenv)})
+	if err := serve(ctx, ln, h, logger); err != nil {
 		logger.Error("serve", "err", err)
 		return 1
 	}
 	return 0
 }
+
+// cookieSecure 本番では Secure を必ず付けるため、"false" を明示したときだけ外します。
+func cookieSecure(getenv func(string) string) bool {
+	return getenv("AWASE_COOKIE_SECURE") != "false"
+}
+
+type systemClock struct{}
+
+func (systemClock) Now() time.Time { return time.Now() }
 
 // serve ctx が取り消されるまで ln で h を提供し、取り消し後は処理中の要求を待って止まります。
 func serve(ctx context.Context, ln net.Listener, h http.Handler, logger *slog.Logger) error {

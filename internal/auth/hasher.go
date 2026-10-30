@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/scrypt"
 )
@@ -28,22 +29,25 @@ type ScryptHasher struct {
 	// sem 1回の計算で約32MiBを使うため、同時に1件だけ計算させます。
 	sem    chan struct{}
 	derive func(password, salt []byte, n, r, p, keyLen int) ([]byte, error)
-	dummy  string
+	// dummy passwd のように照合しない使い方で scrypt を1回分むだに計算しないよう、初めて使うときに作ります。
+	dummy func() string
 }
 
-// NewScryptHasher ScryptHasher を返します。照合の時間をそろえるためのダミーのハッシュをここで1回だけ作ります。
+// NewScryptHasher ScryptHasher を返します。
 func NewScryptHasher() *ScryptHasher {
 	h := &ScryptHasher{sem: make(chan struct{}, 1), derive: scrypt.Key}
-	dummy, err := h.Hash(rand.Text())
-	if err != nil {
-		panic(fmt.Sprintf("auth: scrypt parameters are invalid: %v", err))
-	}
-	h.dummy = dummy
+	h.dummy = sync.OnceValue(func() string {
+		enc, err := h.Hash(rand.Text())
+		if err != nil {
+			panic(fmt.Sprintf("auth: scrypt parameters are invalid: %v", err))
+		}
+		return enc
+	})
 	return h
 }
 
 // DummyHash 誰のパスワードにも一致しないハッシュです。アカウントがないときの照合に使います。
-func (h *ScryptHasher) DummyHash() string { return h.dummy }
+func (h *ScryptHasher) DummyHash() string { return h.dummy() }
 
 // Hash password を "scrypt$N$r$p$ソルト$ハッシュ" の形に符号化します。
 func (h *ScryptHasher) Hash(password string) (string, error) {

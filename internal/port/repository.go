@@ -22,6 +22,8 @@ type IDGen interface {
 type PasswordHasher interface {
 	Hash(password string) (string, error)
 	Verify(hash, password string) bool
+	// DummyHash 誰にも一致しないハッシュです。アカウントがなくても照合の時間をそろえるために使います。
+	DummyHash() string
 }
 
 // Account 共有アカウントです。Version は passwd のたびに1増えます。

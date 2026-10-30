@@ -89,3 +89,22 @@ func TestScryptRunsOneAtATime(t *testing.T) {
 		t.Fatalf("peak concurrent scrypt = %d, want 1", peak.Load())
 	}
 }
+
+func TestDummyHashIsComputedOnFirstUseOnly(t *testing.T) {
+	var calls atomic.Int32
+	h := NewScryptHasher()
+	base := h.derive
+	h.derive = func(pw, salt []byte, n, r, p, keyLen int) ([]byte, error) {
+		calls.Add(1)
+		return base(pw, salt, n, r, p, keyLen)
+	}
+
+	if calls.Load() != 0 {
+		t.Fatalf("scrypt ran %d times before DummyHash was used", calls.Load())
+	}
+	first, second := h.DummyHash(), h.DummyHash()
+
+	if first == "" || first != second || calls.Load() != 1 {
+		t.Fatalf("dummy=%q/%q calls=%d, want same non-empty value from one scrypt", first, second, calls.Load())
+	}
+}

@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="card narrow">
+  <h1>ログイン</h1>
+  {{with .Data.Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+  <form method="post" action="/login" class="stack">
+    <input type="hidden" name="next" value="{{.Data.Next}}">
+    <label>ユーザー名<input name="username" value="{{.Data.Username}}" autocomplete="username" required></label>
+    <label>パスワード<input type="password" name="password" autocomplete="current-password" required></label>
+    <button type="submit">ログイン</button>
+  </form>
+</section>
+{{end}}
