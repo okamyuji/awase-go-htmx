@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func env(kv map[string]string) func(string) string {
@@ -155,5 +156,17 @@ func TestRandomIDsAreUniqueAndURLSafe(t *testing.T) {
 	a, b := randomIDs{}.NewID(), randomIDs{}.NewID()
 	if a == b || len(a) < 26 || strings.ContainsAny(a, "/?#&%") {
 		t.Fatalf("ids = %q %q", a, b)
+	}
+}
+
+func TestNewServerBoundsHowLongAClientCanHoldAConnection(t *testing.T) {
+	srv := newServer(http.NotFoundHandler())
+
+	got := []time.Duration{srv.ReadHeaderTimeout, srv.ReadTimeout, srv.IdleTimeout}
+	want := []time.Duration{10 * time.Second, 30 * time.Second, 120 * time.Second}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("timeouts = %v, want %v", got, want)
+		}
 	}
 }

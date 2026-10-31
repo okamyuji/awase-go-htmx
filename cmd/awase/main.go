@@ -98,9 +98,19 @@ type systemClock struct{}
 
 func (systemClock) Now() time.Time { return time.Now() }
 
+// newServer h を提供するサーバーを作ります。1つの接続が要求の読み込みと待機で居座れる時間を限ります。
+func newServer(h http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+}
+
 // serve ctx が取り消されるまで ln で h を提供し、取り消し後は処理中の要求を待って止まります。
 func serve(ctx context.Context, ln net.Listener, h http.Handler, logger *slog.Logger) error {
-	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
+	srv := newServer(h)
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
 	logger.Info("listening", "addr", ln.Addr().String())
