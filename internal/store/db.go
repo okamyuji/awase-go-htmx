@@ -44,9 +44,8 @@ func migrate(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	slices.Sort(names)
-	for i, name := range names[min(current, len(names)):] {
-		version := current + i + 1
-		if err := applyMigration(ctx, db, name, version); err != nil {
+	for v := current + 1; v <= len(names); v++ {
+		if err := applyMigration(ctx, db, names[v-1], v); err != nil {
 			return err
 		}
 	}

@@ -312,9 +312,10 @@ Freeプランのレート制限で式に使える項目は、パスとVerified B
 
 | 道具 | 内容 | 実行の契機 |
 |---|---|---|
-| `scripts/quality-gate.sh` | gofmt、`go fix -diff`、go vet、staticcheck、golangci-lint、govulncheck、`go test -race -shuffle=on`、カバレッジ80%以上、CRAP値、ミューテーションの残骸の検出、ビルド、gitleaks、doclint | pre-commitと手動 |
+| `scripts/quality-gate.sh` | gofmt、`go fix -diff`、go vet、staticcheck、golangci-lint、govulncheck、`go test -race -shuffle=on`、カバレッジ80%以上、CRAP値、ミューテーションの残骸の検出、ミューテーションの判定の確認、ビルド、gitleaks、doclint | pre-commitと手動 |
 | `scripts/crap.sh` | 全関数のCRAP値を計算し、15以上があれば失敗します | 品質ゲート |
-| `scripts/mutation.sh` | gremlins v0.6.0を実行し、KILLEDと変異後にビルドできないもの以外が1件でもあれば失敗します | 手動。実装の最後に実行します |
+| `scripts/mutation.sh` | gremlins v0.6.0を`tools/`を除いて実行し、`scripts/mutation-judge.sh`で判定します | 手動。実装の最後に実行します |
+| `scripts/mutation-judge.sh` | KILLEDと変異後にビルドできないもの以外が1件でもあれば失敗します。カバレッジのどのブロックにも入らない行のNOT COVEREDだけは除外します | `scripts/mutation.sh`から |
 | `scripts/check-mutation-residue.sh` | ミューテーションの作業領域と結果ファイルが残っていれば失敗します | 品質ゲートとpre-commit |
 | 共通CI | go vet、ビルド、`go test -race -shuffle=on -count=1`、gitleaks | push |
 
@@ -327,7 +328,7 @@ gremlinsは`os.TempDir()`の下に`gremlins-`で始まるディレクトリを�
 1. 作業領域を`${XDG_CACHE_HOME:-$HOME/.cache}/awase-mutation`に決めて`mkdir -p`で作り、`TMPDIR`をそこへ向けます。gremlinsとテストが作る一時ファイルは、すべてこの中に集まります。
 2. 関数`cleanup`を`trap`で`EXIT`に登録します。`cleanup`は作業領域を削除し、削除後に作業領域が残っていれば終了コードを1にします。`INT`、`TERM`、`HUP`の`trap`は、0以外の終了コードで`exit`します。gremlinsは中断されると終了コード0で終わるため、シグナルを受けたスクリプトがその先へ進まないようにします。
 3. gremlinsを`GOFLAGS=-count=1`と`--timeout-coefficient 10`を付けて実行し、結果のJSONを作業領域の中に書きます。テストのキャッシュが当たると、gremlinsが時間切れの基準にする初回の計測が短くなり、変異がすべて時間切れになるためです。
-4. 結果のJSONをjqで読み、KILLEDと変異後にビルドできないもの以外が1件でもあれば失敗にします。SKIPPEDも失敗として数えます。gremlinsは中断されたときと結果が0件のときにJSONを書かないため、JSONがない場合も失敗にします。gremlinsの効率の閾値は、テストが届かない変異と時間切れの変異を分母に入れないため、この判定には使いません。
+4. 結果のJSONをjqで読み、KILLEDと変異後にビルドできないもの以外が1件でもあれば失敗にします。SKIPPEDも失敗として数えます。ただし、NOT COVEREDのうち、`go test -coverprofile`のどのブロックにも入らない行の変異は除外します。Goのカバレッジはパッケージ水準のconstとvarを計測しないため、gremlinsはそれらの変異を実行できず、テストを足してもKILLEDになりません。関数の中のNOT COVEREDは失敗のままです。gremlinsは中断されたときと結果が0件のときにJSONを書かないため、JSONがない場合も失敗にします。gremlinsの効率の閾値は、テストが届かない変異と時間切れの変異を分母に入れないため、この判定には使いません。
 
 `SIGKILL`のように`trap`で受けられない終了の場合、作業領域は残ったままになります。この場合は`scripts/check-mutation-residue.sh`が品質ゲートとpre-commitを失敗させ、`make mutation-clean`を実行するまでコミットできません。この検出は、作業領域と、リポジトリ直下の`gremlins.json`と`gremlins-*`を調べます。
 

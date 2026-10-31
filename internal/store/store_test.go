@@ -3,6 +3,8 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -61,6 +63,22 @@ func TestOpenAppliesSchemaIdempotently(t *testing.T) {
 		if err := db.Close(); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestMigrateFailsWhenSchemaCannotBeWritten(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "awase.db")
+	must(t, os.WriteFile(path, nil, 0o600))
+	db, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}).String())
+	must(t, err)
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+
+	if err := migrate(t.Context(), db); err == nil {
+		t.Fatal("migrate succeeded on a read-only database, want error")
 	}
 }
 
@@ -276,6 +294,11 @@ func TestAnswersUpdateReplacesFields(t *testing.T) {
 	got := list[0]
 	if got.Name != "花子" || got.Comment != "" || got.Choices[f.c0] != domain.No || got.Choices[f.c1] != domain.Yes || !got.UpdatedAt.Equal(later.Add(time.Hour)) {
 		t.Fatalf("got %+v", got)
+	}
+	e, err := f.ev.Get(t.Context(), "e1")
+	must(t, err)
+	if !e.UpdatedAt.Equal(later.Add(time.Hour)) {
+		t.Fatalf("event updated_at = %v, want %v", e.UpdatedAt, later.Add(time.Hour))
 	}
 }
 
