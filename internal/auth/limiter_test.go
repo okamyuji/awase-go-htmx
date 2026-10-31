@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -89,5 +90,42 @@ func TestLimiterDropsStaleEntries(t *testing.T) {
 
 	if n := len(l.entries); n != 1 {
 		t.Fatalf("entries = %d, want only the new one", n)
+	}
+}
+
+func TestLimiterCountsIPv6AddressesInTheSameSlash64Together(t *testing.T) {
+	l := NewLimiter()
+	for i := range maxFailures {
+		l.Attempt(fmt.Sprintf("2001:db8:1:2::%x", i+1), t0)
+	}
+
+	if l.Attempt("2001:db8:1:2:ffff:ffff:ffff:ffff", t0) {
+		t.Fatal("another address in the same /64 was not blocked")
+	}
+	if !l.Attempt("2001:db8:1:3::1", t0) {
+		t.Fatal("an address in a different /64 was blocked")
+	}
+}
+
+func TestLimiterResetClearsTheWholeSlash64(t *testing.T) {
+	l := NewLimiter()
+	attemptN(l, "2001:db8:1:2::1", maxFailures, t0)
+
+	l.Reset("2001:db8:1:2::2")
+
+	if !l.Attempt("2001:db8:1:2::1", t0) {
+		t.Fatal("reset from the same /64 did not clear the lock")
+	}
+}
+
+func TestLimiterTreatsIPv4MappedIPv6AsIPv4(t *testing.T) {
+	l := NewLimiter()
+	attemptN(l, "::ffff:192.0.2.1", maxFailures, t0)
+
+	if l.Attempt("192.0.2.1", t0) {
+		t.Fatal("the IPv4 address was not blocked after failures from its IPv4-mapped form")
+	}
+	if !l.Attempt("192.0.2.2", t0) {
+		t.Fatal("a neighbouring IPv4 address was blocked")
 	}
 }
