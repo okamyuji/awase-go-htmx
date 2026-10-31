@@ -14,6 +14,16 @@ jq -r '"変異 \(.mutants_total) 件 / KILLED \(.mutants_killed) 件 / LIVED \(.
 
 # カバレッジの各ブロックを「ファイル 開始行 終了行」の形にします。
 blocks=$(sed -E -n "s#^${module}/([^:]+):([0-9]+)\.[0-9]+,([0-9]+)\.[0-9]+ .*#\1 \2 \3#p" "$cover")
+# ブロックが1つもないと、すべての NOT COVERED が除外されて合格に化けるため止めます。
+if [ -z "$blocks" ]; then
+  echo "カバレッジに $module のブロックがありません: $cover" >&2
+  exit 1
+fi
+# プロセス置換の中の jq の失敗は set -e で止まらないため、先に変数へ取り込みます。
+survivors=$(jq -r '
+  .files[] | .file_name as $f | .mutations[]
+  | select(.status != "KILLED" and .status != "NOT VIABLE")
+  | [.status, .type, $f, .line, .column] | @tsv' "$json")
 
 failed=""
 while IFS=$'\t' read -r status type file line col; do
@@ -24,10 +34,7 @@ while IFS=$'\t' read -r status type file line col; do
     continue
   fi
   failed+="$status $type $file:$line:$col"$'\n'
-done < <(jq -r '
-  .files[] | .file_name as $f | .mutations[]
-  | select(.status != "KILLED" and .status != "NOT VIABLE")
-  | [.status, .type, $f, .line, .column] | @tsv' "$json")
+done <<<"$survivors"
 
 if [ -n "$failed" ]; then
   echo "KILLED にならなかった変異があります" >&2

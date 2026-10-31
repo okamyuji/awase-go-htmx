@@ -36,5 +36,21 @@ expect 1 "計測される行の NOT COVERED は失敗" "NOT COVERED" 11
 expect 1 "LIVED は失敗" LIVED 11
 expect 1 "計測されない行でも LIVED は失敗" LIVED 3
 
+# 入力が壊れていると、すべての NOT COVERED が除外されて合格に化けるため、失敗にします。
+expect_broken() {
+  local name="$1" json="$2" cover="$3"
+  if scripts/mutation-judge.sh "$json" "$cover" "$mod" >/dev/null 2>&1; then
+    echo "NG: $name（終了コード 0、期待 1）" >&2
+    fail=1
+  fi
+}
+judge "NOT COVERED" 11 || true
+: >"$dir/empty.out"
+expect_broken "空のカバレッジは失敗" "$dir/r.json" "$dir/empty.out"
+sed "s#^$mod/#other.test/m/#" "$dir/cover.out" >"$dir/cover.out.other"
+expect_broken "モジュールが一致しないカバレッジは失敗" "$dir/r.json" "$dir/cover.out.other"
+echo '{"mutants_total": 0}' >"$dir/nofiles.json"
+expect_broken "files のない結果は失敗" "$dir/nofiles.json" "$dir/cover.out"
+
 [ "$fail" = 0 ] && echo "mutation-judge の判定はすべて期待どおりです"
 exit "$fail"
