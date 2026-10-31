@@ -131,9 +131,10 @@ func clientIP(r *http.Request) string {
 
 // safeNext ログイン後の移動先を awase 内のパスに限ります。条件を満たさなければ一覧へ移動させます。
 func safeNext(raw string) string {
+	// ブラウザは // と /\ で始まる値を別のホストへの URL と解釈するため、2文字目も確かめます。
+	sameHostPath := len(raw) > 1 && raw[0] == '/' && raw[1] != '/' && raw[1] != '\\'
 	u, err := url.Parse(raw)
-	if err != nil || u.Scheme != "" || u.Host != "" ||
-		!strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || strings.Contains(raw, `\`) {
+	if !sameHostPath || err != nil || u.Scheme != "" || u.Host != "" || strings.Contains(raw, `\`) {
 		return "/"
 	}
 	return raw
