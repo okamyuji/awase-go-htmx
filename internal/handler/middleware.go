@@ -12,6 +12,9 @@ import (
 
 const cookieName = "awase_session"
 
+// maxBodyBytes フォームの本文の上限です。候補50件のフォームでも数キロバイトに収まります。
+const maxBodyBytes = 1 << 20
+
 type ctxKey struct{}
 
 func authed(ctx context.Context) bool {
@@ -47,7 +50,26 @@ func (a *app) logRequests(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
-		a.log.InfoContext(r.Context(), "request", "method", r.Method, "path", r.URL.Path, "status", rec.status, "ms", time.Since(start).Milliseconds())
+		a.log.InfoContext(r.Context(), "request", "method", r.Method, "path", r.URL.Path, "status", rec.status, "ms", time.Since(start).Milliseconds(), "ip", clientIP(r))
+	})
+}
+
+// limitBody POST の本文を maxBodyBytes までに限り、超えた要求を 413 で返します。
+// 各ハンドラの PostFormValue は解析の失敗を捨てて空の値を返すため、ここで先に解析して止めます。
+func limitBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+			if err := r.ParseForm(); err != nil {
+				if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+					http.Error(w, "送信する内容が大きすぎます", http.StatusRequestEntityTooLarge)
+					return
+				}
+				http.Error(w, "送信の形式が正しくありません", http.StatusBadRequest)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 

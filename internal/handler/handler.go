@@ -65,7 +65,7 @@ func New(d Deps) http.Handler {
 	for pattern, h := range private {
 		mux.Handle(pattern, a.requireAuth(h))
 	}
-	return a.logRequests(securityHeaders(http.NewCrossOriginProtection().Handler(mux)))
+	return a.logRequests(securityHeaders(http.NewCrossOriginProtection().Handler(limitBody(mux))))
 }
 
 func (a *app) healthz(w http.ResponseWriter, r *http.Request) {
