@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -39,6 +40,7 @@ func (l *Limiter) Attempt(ip string, now time.Time) bool {
 			delete(l.entries, k)
 		}
 	}
+	ip = limitKey(ip)
 	f, ok := l.entries[ip]
 	if ok && now.Before(f.until) {
 		return false
@@ -59,5 +61,20 @@ func (l *Limiter) Attempt(ip string, now time.Time) bool {
 func (l *Limiter) Reset(ip string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	delete(l.entries, ip)
+	delete(l.entries, limitKey(ip))
+}
+
+// limitKey ip を数える単位にそろえます。IPv6 は /64 で数えます。
+// 1つの回線に /64 が割り当てられるため、アドレスを替えるだけで制限を逃れられないようにします。
+// IP として読めない値は、そのまま使います。
+func limitKey(ip string) string {
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return ip
+	}
+	addr = addr.Unmap()
+	if addr.Is4() {
+		return addr.String()
+	}
+	return netip.PrefixFrom(addr, 64).Masked().String()
 }
