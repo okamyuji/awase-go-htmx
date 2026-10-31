@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -68,7 +69,7 @@ func TestOpenAppliesSchemaIdempotently(t *testing.T) {
 func TestMigrateFailsWhenSchemaCannotBeWritten(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "awase.db")
 	must(t, os.WriteFile(path, nil, 0o600))
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	db, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}).String())
 	must(t, err)
 	t.Cleanup(func() {
 		if err := db.Close(); err != nil {

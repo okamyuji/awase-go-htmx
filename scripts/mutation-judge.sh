@@ -12,11 +12,22 @@ module="${3:?module}"
 
 jq -r '"変異 \(.mutants_total) 件 / KILLED \(.mutants_killed) 件 / LIVED \(.mutants_lived) 件 / NOT COVERED \(.mutants_not_covered) 件 / NOT VIABLE \(.mutants_not_viable) 件"' "$json"
 
-# カバレッジの各ブロックを「ファイル 開始行 終了行」の形にします。
-blocks=$(sed -E -n "s#^${module}/([^:]+):([0-9]+)\.[0-9]+,([0-9]+)\.[0-9]+ .*#\1 \2 \3#p" "$cover")
+# カバレッジの各ブロックを「ファイル 開始行 終了行」の形にします。モジュールのパスは文字列として比べます。
+blocks=$(awk -v p="$module/" 'index($0, p) == 1 {
+  rest = substr($0, length(p) + 1)
+  split(rest, at, ":")
+  split(at[2], pos, "[.,]")
+  print at[1], pos[1], pos[3]
+}' "$cover")
 # ブロックが1つもないと、すべての NOT COVERED が除外されて合格に化けるため止めます。
 if [ -z "$blocks" ]; then
   echo "カバレッジに $module のブロックがありません: $cover" >&2
+  exit 1
+fi
+# gremlins の mutants_total は KILLED、LIVED、NOT VIABLE の件数です（report.go の fileReport）。
+# 明細がこれと食い違うと、明細だけを見る判定は生き残りを見落とすため止めます。
+if [ "$(jq '.mutants_total as $t | [.files[].mutations[] | select(.status == "KILLED" or .status == "LIVED" or .status == "NOT VIABLE")] | length == $t' "$json")" != true ]; then
+  echo "結果の明細が mutants_total と一致しません: $json" >&2
   exit 1
 fi
 # プロセス置換の中の jq の失敗は set -e で止まらないため、先に変数へ取り込みます。
