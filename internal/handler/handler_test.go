@@ -116,3 +116,17 @@ func TestRequestLogIncludesClientIP(t *testing.T) {
 		t.Fatalf("logs = %q, want ip 203.0.113.7", logs.String())
 	}
 }
+
+func TestRenderLogsOnlyFailedWrites(t *testing.T) {
+	h, logs := newTestHandler(t, &fakeAuth{})
+
+	do(h, httptest.NewRequest(http.MethodGet, "/login", nil))
+	if strings.Contains(logs.String(), `"msg":"render"`) {
+		t.Fatalf("render error logged for a successful page: %s", logs.String())
+	}
+
+	h.ServeHTTP(failingWriter{httptest.NewRecorder()}, httptest.NewRequest(http.MethodGet, "/login", nil))
+	if !strings.Contains(logs.String(), `"msg":"render"`) {
+		t.Fatalf("render error not logged: %s", logs.String())
+	}
+}

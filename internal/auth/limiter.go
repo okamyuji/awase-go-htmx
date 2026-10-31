@@ -43,7 +43,8 @@ func (l *Limiter) Attempt(ip string, now time.Time) bool {
 	if ok && now.Before(f.until) {
 		return false
 	}
-	if !ok || now.Sub(f.first) >= failWindow {
+	// 窓の切れた記録は上のループで消えているため、残っている記録はすべて窓の中にあります。
+	if !ok {
 		f = &failures{first: now}
 		l.entries[ip] = f
 	}

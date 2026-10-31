@@ -6,6 +6,9 @@ cd "$(dirname "$0")/.."
 echo "==> mutation residue"
 scripts/check-mutation-residue.sh
 
+echo "==> mutation judge self-check"
+scripts/mutation-judge-test.sh
+
 echo "==> gofmt"
 unformatted="$(gofmt -l .)"
 if [ -n "$unformatted" ]; then

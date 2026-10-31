@@ -152,20 +152,25 @@ func TestLoginUsesRemoteAddrWithoutRealIP(t *testing.T) {
 
 func TestLoginFailureStatuses(t *testing.T) {
 	tests := []struct {
-		name string
-		auth *fakeAuth
-		want int
-		msg  string
+		name   string
+		auth   *fakeAuth
+		want   int
+		msg    string
+		logged bool
 	}{
-		{"誤った資格情報", &fakeAuth{}, http.StatusUnauthorized, "ユーザー名またはパスワードが違います"},
-		{"拒否中", &fakeAuth{loginErr: port.ErrLocked}, http.StatusTooManyRequests, "しばらく待って"},
-		{"内部エラー", &fakeAuth{loginErr: context.DeadlineExceeded}, http.StatusInternalServerError, "エラー"},
+		{"誤った資格情報", &fakeAuth{}, http.StatusUnauthorized, "ユーザー名またはパスワードが違います", false},
+		{"拒否中", &fakeAuth{loginErr: port.ErrLocked}, http.StatusTooManyRequests, "しばらく待って", false},
+		{"内部エラー", &fakeAuth{loginErr: context.DeadlineExceeded}, http.StatusInternalServerError, "エラー", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h, _ := newTestHandler(t, tt.auth)
+			h, logs := newTestHandler(t, tt.auth)
 
 			rec := do(h, postForm("/login", url.Values{"username": {"demo"}, "password": {"wrong"}, "next": {"/events/x"}}))
+
+			if got := strings.Contains(logs.String(), `"msg":"login"`); got != tt.logged {
+				t.Fatalf("login error logged = %v, want %v: %s", got, tt.logged, logs.String())
+			}
 
 			if rec.Code != tt.want || !strings.Contains(rec.Body.String(), tt.msg) {
 				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
