@@ -185,7 +185,9 @@ func TestLoginFailureStatuses(t *testing.T) {
 func TestSafeNext(t *testing.T) {
 	tests := map[string]string{
 		"":                    "/",
+		"/":                   "/",
 		"/events/abc":         "/events/abc",
+		"/events\\abc":        "/",
 		"/events/abc?x=1":     "/events/abc?x=1",
 		"https://example.com": "/",
 		"//example.com":       "/",
