@@ -14,5 +14,12 @@ jobs:
       # go.mod は Dependabot の Go でも満たせる版にし、CI は最新のパッチで動かします。
       go-version: "1.27.x"
       test-command: "go test -race -shuffle=on -count=1 ./..."
+  # tools/doclint は別モジュールなので、ルートの go-ci では動かない
+  doclint:
+    uses: okamyuji/reusable-workflows/.github/workflows/go-ci.yml@v1
+    with:
+      go-version: "1.27.x"
+      working-directory: tools/doclint
+      test-command: "go test ./... && go run . ../../docs"
   security:
     uses: okamyuji/reusable-workflows/.github/workflows/security-scan.yml@v1
